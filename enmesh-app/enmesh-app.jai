@@ -3,5 +3,5 @@
 
 main :: () {
     print("main\n");
-    enmesh();
+    enmesh("plane2.gltf");
 }

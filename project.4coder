@@ -21,8 +21,8 @@ load_paths = {
 
 commands = {
  .build         = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,  .win = "enmesh-app\\build.bat"},
- .run           = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = false, .win = "enmesh-app\\enmesh-app.exe" },
- .build_and_run = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,  .win = "enmesh-app\\build.bat && enmesh-app\\enmesh-app.exe"},
+ .run           = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = false, .win = "enmesh-app\\run.bat" },
+ .build_and_run = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,  .win = "enmesh-app\\build.bat && enmesh-app\\run.bat"},
 };
 
 fkey_command = {
