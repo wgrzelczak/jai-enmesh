@@ -1,0 +1,32 @@
+version(2);
+project_name = "jai-enmesh";
+patterns = {
+"*.jai",
+"*.bat",
+"*.sh",
+"*.4coder",
+};
+
+blacklist_patterns = {
+".*",
+};
+
+load_paths_base = {
+ { ".", .relative = true, .recursive = true, },
+};
+
+load_paths = {
+ .win = load_paths_base,
+};
+
+commands = {
+ .build         = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,  .win = "enmesh-app\\build.bat"},
+ .run           = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = false, .win = "enmesh-app\\enmesh-app.exe" },
+ .build_and_run = { .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,  .win = "enmesh-app\\build.bat && enmesh-app\\enmesh-app.exe"},
+};
+
+fkey_command = {
+.F1 = "run",
+.F2 = "build",
+.F5 = "build_and_run",
+};

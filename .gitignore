@@ -1,0 +1,8 @@
+*.exe
+*.pdb
+.vs/
+.build/
+build/
+imgui.ini
+
+*.wpix
