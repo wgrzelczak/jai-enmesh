@@ -302,9 +302,17 @@ parse_array :: (str: string, slot: *u8, info: *Type_Info_Array, ignore_unknown: 
 		array := cast(*Resizable_Array) slot;
 		element_data := alloc(element_size);
 		defer free(element_data);
-
+        
+        initializer: (*void);
+        if info.element_type.type == .STRUCT {
+            struct_info := cast(*Type_Info_Struct) info.element_type;
+            initializer = struct_info.initializer;
+        }
+        
 		while true {
-			memset(element_data, 0, element_size);
+            if initializer initializer(element_data);
+            else           memset(element_data, 0, element_size);
+            
 			success: bool;
 			remainder, success = parse_value(remainder, element_data, info.element_type, ignore_unknown);
 			if !success	return remainder, false;
