@@ -129,8 +129,13 @@ json_write_native_members :: (builder: *String_Builder, data: *void, members: []
 }
 
 get_array_stride :: (size: s64) -> s64 {
-	// @Robustness: We assume 8-byte alignment for now.
-	return (size + 7) & ~7;
+    // Note(nyv): Not sure why it is needed - it breaks u8 arrays.
+    //            Returning elemnt size instead.
+    
+    // @Robustness: We assume 8-byte alignment for now.
+	//return (size + 7) & ~7;
+    
+    return size;
 }
 
 parse_value :: (to_parse: string, slot: *u8, info: *Type_Info, ignore_unknown: bool) -> remainder: string, success: bool {
@@ -233,21 +238,42 @@ parse_value :: (to_parse: string, slot: *u8, info: *Type_Info, ignore_unknown: b
 			if success {
 				remainder, success = parse_object(remainder, value_slot, cast(*Type_Info_Struct) value_info, ignore_unknown);
 			}
-		case;
-			// @ToDo, @Incomplete: Check the slot type and parse as float, if needed! (…or if the slot is null)
-			int_value: s64;
-			int_value, success, remainder = to_integer(remainder);
-			if success && slot {
-				value_slot: *u8;
-				value_info: *Type_Info;
-				value_slot, success, value_info = prepare_slot(.INTEGER, info, slot, to_parse);
-				if success {
-					info_int := cast(*Type_Info_Integer) value_info;
-					success = write_integer(info_int, value_slot, int_value);
-				}
-			}
+		case;        
+            after_integers := trim_left(remainder, "+-0123456789");
+            if after_integers[0] == {
+                case #char "."; #through;
+                case #char "e"; #through;
+                case #char "E"; {
+                    float_value: float64;
+                    float_value, success, remainder = string_to_float(remainder);
+                    if success && slot {
+                        value_slot: *u8;
+                        value_info: *Type_Info;
+                        value_slot, success, value_info = prepare_slot(.FLOAT, info, slot, to_parse);
+                        if success {
+                            info_float := cast(*Type_Info_Float) value_info;
+                            success = write_float(info_float, value_slot, float_value);
+                        }
+                    }
+                }
+                case;
+                int_value: s64;
+                int_value, success, remainder = to_integer(remainder);
+                if success && slot {
+                    value_slot: *u8;
+                    value_info: *Type_Info;
+                    value_slot, success, value_info = prepare_slot(.INTEGER, info, slot, to_parse);
+                    if success {
+                        info_int := cast(*Type_Info_Integer) value_info;
+                        success = write_integer(info_int, value_slot, int_value);
+                    }
+                }
+        }
+        
+        // @ToDo, @Incomplete: Check the slot type and parse as float, if needed! (…or if the slot is null)
+        
 	}
-
+    
 	return remainder, success;
 }
 
@@ -379,6 +405,17 @@ parse_object :: (str: string, slot: *u8, info: *Type_Info_Struct, ignore_unknown
 	remainder = advance(remainder);
 	return remainder, true;
 }
+write_float :: (info: *Type_Info_Float, pointer: *void, value: float64) -> bool {
+    if info.runtime_size == {
+        case 4; << cast(*float32) pointer = cast(float32) value;
+        case 8; << cast(*float64) pointer = cast(float64) value;
+        case;
+        log_error("Value '%' has invalid runtime_size!", value);
+        return false;
+    }    
+    return true;
+}
+
 
 write_integer :: (info: *Type_Info_Integer, pointer: *void, value: s64) -> bool {
 	if info.signed {
