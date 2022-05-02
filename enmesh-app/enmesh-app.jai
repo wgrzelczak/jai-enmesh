@@ -1,7 +1,9 @@
 #import "Basic";
-#import "jai-enmesh";
+Enmesh :: #import "jai-enmesh";
 
 main :: () {
-    print("main\n");
-    enmesh("plane2.gltf");
+    opts := Enmesh.Options.{
+        loader = .GLTF
+    };
+    Enmesh.convert("plane2.gltf", opts);
 }
