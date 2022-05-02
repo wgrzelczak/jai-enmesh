@@ -36,6 +36,41 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
         for prim, prim_idx : mesh.primitives {
             out_prim := *out_mesh.primitives[prim_idx];
             // Vertices
+            accessors : [..] *Internal_Accessor;
+            a_pos, success_pos := init_accessor(gltf, prim.attributes.POSITION);
+            a_nor, success_nor := init_accessor(gltf, prim.attributes.NORMAL);
+            a_uv0, success_uv0 := init_accessor(gltf, prim.attributes.TEXCOORD_0);
+            
+            for opts.vertices_attributes_order {
+                if it == {
+                    case .Position; if success_pos then array_add(*accessors, *a_pos);
+                    case .Normal;   if success_nor then array_add(*accessors, *a_nor);
+                    case .UV0;      if success_uv0 then array_add(*accessors, *a_uv0);
+                }
+            }
+            if accessors.count == 0 {
+                log_error("No vertex accessors!");
+                return f, false;
+            }
+            //TODO(nyv): check if all accessors have the same element_count
+            
+            vertex_stride : u64 = 0;
+            for accessors {
+                vertex_stride += it.element_size;
+            }
+            
+            vertices_count := accessors[0].element_count;
+            array_resize(*out_prim.vertices, cast(s64)vertex_stride * cast(s64)vertices_count);
+            out_data := out_prim.vertices.data;
+            
+            for v_idx : 0..vertices_count-1 {
+                float_size := 4;
+                for accessors {
+	                eat_and_save(it, out_data, cast(s64)it.element_size);
+	                out_data += it.element_size;
+                }
+            }
+                       
             
             // Indices
             if prim.indices != UNDEFINED {
@@ -121,6 +156,10 @@ Internal_Accessor :: struct {
 }
 
 init_accessor :: (gltf : Gltf_File, index := UNDEFINED) -> Internal_Accessor, success : bool {
+    if index == UNDEFINED {
+        return .{}, false;
+    }
+    
     accessor  : *Gltf_Accessor;
     buff_view : *Gltf_Buffer_View;
     buff      : *Gltf_Buffer;
@@ -157,6 +196,11 @@ eat_and_save :: (using accessor : *Internal_Accessor, dest : *u8, dest_size : s6
         case 2; << cast(*u16) dest = cast(u16)value;
         case 4; << cast(*u32) dest = cast(u32)value;
         case 8; << cast(*u64) dest = cast(u64)value;
+        case; {
+            if cast(u64)dest_size == element_size {
+                memcpy(dest, data, dest_size);
+            }
+        }
     }
     data += element_size;
 }

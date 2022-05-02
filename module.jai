@@ -3,14 +3,7 @@ Options :: struct {
     
     // Vertices
     vertices_add_missing    := false; //@Incomplete
-    vertices_order_position := 0;
-    vertices_order_normal   := 1;
-    vertices_order_tangent  := 2;
-    vertices_order_uv0      := 3;
-    vertices_order_uv1      := 4;
-    
-    //TODO(nyv): colors, joints, weights
-    
+    vertices_attributes_order : [] Attribute = .[.Position, .Normal, .UV0];  
     
     // Indices
     indices_element_size_in_bytes := 2; // -> u16
@@ -37,6 +30,15 @@ Primitive :: struct {
     
 #place vertices; vertices_f32 : [] float32;
 #place indices; indices_u16   : [] u16;
+}
+
+//TODO(nyv): colors, joints, weights, bitangent?
+Attribute :: enum {
+    Position;
+    Normal;
+    Tangent;
+    UV0;
+    UV1;
 }
 
 convert :: (filepath : string, opts := Options.{}) {
