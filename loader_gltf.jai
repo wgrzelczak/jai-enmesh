@@ -19,7 +19,16 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
                 it.loaded_data = Base64.base64_decode(view);
                 assert(it.loaded_data.count == it.byteLength);
             } else {
-                log_error("Bin files are not supported yet!");
+                file, success := file_open(it.uri);
+                defer file_close(*file);
+                if !success 
+	                log_error("Couldn't open bin file: %!", it.uri);
+                
+                str_data :=read_entire_file(file);
+                assert(str_data.count == it.byteLength);
+             
+                it.loaded_data.data  = str_data.data;
+                it.loaded_data.count = str_data.count;
             }
         }
     }
@@ -92,11 +101,8 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
         }
     }
     
-    
     return f, true;
 }
-
-
 
 #scope_file
 Gltf_File :: struct {
