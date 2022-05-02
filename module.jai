@@ -27,6 +27,7 @@ Mesh :: struct {
 
 Primitive :: struct {
     name : string;
+    //TODO(nyv): add vertex layout
     vertices : [..] u8;
     indices  : [..] u8;
     
@@ -81,6 +82,8 @@ convert :: (filepath : string, opts := Options.{}) {
         info_builder : String_Builder;
         offset_v := 0;
         offset_i := 0;        
+        
+        //TODO(nyv): add user callbacks for printing, as we dont want to produce csv here
         print_to_builder(*info_builder, "%;%;%;%;%;%\n",
                          "mesh", "primitive",
                          "v_size_in_bytes", "v_offset_in_bytes",
@@ -101,8 +104,6 @@ convert :: (filepath : string, opts := Options.{}) {
         
         write_entire_file(tprint("%/%_info.csv", dir, dir), info_builder);
     }
-    
-    print("Content: %\n", content);
 }
 
 #scope_file
