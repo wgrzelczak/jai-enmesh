@@ -17,23 +17,26 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
                 view.count = right.count;
                 
                 it.loaded_data = Base64.base64_decode(view);
-                assert(it.loaded_data.count == it.byteLength);
             } else {
                 file, success := file_open(it.uri);
                 defer file_close(*file);
                 if !success 
 	                log_error("Couldn't open bin file: %!", it.uri);
                 
-                str_data :=read_entire_file(file);
-                assert(str_data.count == it.byteLength);
-             
+                str_data := read_entire_file(file);
+                          
                 it.loaded_data.data  = str_data.data;
                 it.loaded_data.count = str_data.count;
+            }
+            
+            if it.loaded_data.count != it.byteLength {
+                log_error("Couldn't load buffer with index : %!", it_index);
             }
         }
     }
     
-    
+    //
+    // Create File_Content
     f : File_Content;
     f.filename = filename;
     array_resize(*f.meshes, gltf.meshes.count);
@@ -44,6 +47,7 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
         array_resize(*out_mesh.primitives, mesh.primitives.count);
         for prim, prim_idx : mesh.primitives {
             out_prim := *out_mesh.primitives[prim_idx];
+            //
             // Vertices
             accessors : [..] *Internal_Accessor;
             a_pos, success_pos := init_accessor(gltf, prim.attributes.POSITION);
@@ -80,7 +84,7 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
                 }
             }
                        
-            
+            //
             // Indices
             if prim.indices != UNDEFINED {
             	accessor, success := init_accessor(gltf, prim.indices);
@@ -100,6 +104,7 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
             }
         }
     }
+    
     
     return f, true;
 }

@@ -48,6 +48,20 @@ convert :: (filepath : string, opts := Options.{}) {
         case .GLTF;    content, success = load_from_gltf(filepath, opts);
     }
     
+    left  : string;
+    right : string;
+    success, left, right = split_from_right(content.filename, ".");
+    dir := left;
+    make_directory_if_it_does_not_exist(dir);
+    for m : content.meshes {
+        d := tprint("%/%", dir, m.name);
+        make_directory_if_it_does_not_exist(d);
+        
+        for m.primitives {
+	        write_entire_file(tprint("%/%_vertices.bin", d, it_index), it.vertices.data, it.vertices.count);
+            write_entire_file(tprint("%/%_indices.bin", d, it_index), it.indices.data, it.indices.count);
+        }
+    }
     print("Content: %\n", content);
 }
 
