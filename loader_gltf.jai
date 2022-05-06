@@ -56,15 +56,28 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
             
             for opts.vertices_attributes_order {
                 if it == {
-                    case .Position; if success_pos then array_add(*accessors, *a_pos);
-                    case .Normal;   if success_nor then array_add(*accessors, *a_nor);
-                    case .UV0;      if success_uv0 then array_add(*accessors, *a_uv0);
+                    case .Position; {
+                        if !success_pos continue;
+                        array_add(*accessors, *a_pos);
+                    }
+                    case .Normal; {
+                        if !success_nor continue;
+                        array_add(*accessors, *a_nor);
+                    }
+                    case .UV0;{
+                        if !success_uv0 continue;
+                        array_add(*accessors, *a_uv0);
+                    }
                 }
+                
+                // Append to vertex layout
+                array_add(*out_prim.attributes, it);
             }
             if accessors.count == 0 {
                 log_error("No vertex accessors!");
                 return f, false;
             }
+            
             //TODO(nyv): check if all accessors have the same element_count
             
             vertex_stride : u64 = 0;
