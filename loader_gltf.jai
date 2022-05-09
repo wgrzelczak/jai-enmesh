@@ -52,6 +52,7 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
             accessors : [..] *Internal_Accessor;
             a_pos, success_pos := init_accessor(gltf, prim.attributes.POSITION);
             a_nor, success_nor := init_accessor(gltf, prim.attributes.NORMAL);
+            a_tan, success_tan := init_accessor(gltf, prim.attributes.TANGENT);
             a_uv0, success_uv0 := init_accessor(gltf, prim.attributes.TEXCOORD_0);
             
             for opts.vertices_attributes_order {
@@ -64,7 +65,19 @@ load_from_gltf :: (filename : string, opts : Options) -> File_Content, success :
                         if !success_nor continue;
                         array_add(*accessors, *a_nor);
                     }
-                    case .UV0;{
+                    case .Tangent; {
+                        if !success_tan {
+                            if opts.vertices_generate_tangents_if_needed {
+                                a_tan, success_tan = init_dummy_accessor(4 * 4); //4x 32float
+                                f.tangents_found = false;
+                            } else {
+                                f.tangents_found = true;
+                                continue;
+                            }
+                        }
+                        array_add(*accessors, *a_tan);
+                    }
+                    case .UV0; {
                         if !success_uv0 continue;
                         array_add(*accessors, *a_uv0);
                     }
@@ -143,6 +156,7 @@ Gltf_Primitive :: struct {
 Gltf_Primitive_Attributes :: struct {
     POSITION   := UNDEFINED;
     NORMAL     := UNDEFINED;
+    TANGENT    := UNDEFINED;
     TEXCOORD_0 := UNDEFINED;
     //TODO(nyv): Incomplete
 }
@@ -206,6 +220,17 @@ init_accessor :: (gltf : Gltf_File, index := UNDEFINED) -> Internal_Accessor, su
     
     return ret, success;
 }
+//
+// Dummy accessor fills attribute data with zeroes
+dummy_data : [32]u8;
+init_dummy_accessor :: (element_size : u64) -> Internal_Accessor, success : bool {
+    ret : Internal_Accessor;
+    ret.data          = dummy_data.data;
+    ret.element_size  = element_size;
+    ret.element_count = 0;
+    ret.stride        = 0;
+    return ret, true;
+}
 
 eat_and_save :: (using accessor : *Internal_Accessor, dest : *u8, dest_size : s64) {
     value : u64;
@@ -226,7 +251,7 @@ eat_and_save :: (using accessor : *Internal_Accessor, dest : *u8, dest_size : s6
             }
         }
     }
-    data += element_size;
+    data += stride;;
 }
 
 get_element_size :: (component_type : s64, type : string) -> u64 {

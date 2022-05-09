@@ -1,11 +1,19 @@
-Options :: struct {
+Default_Vertex :: struct {
+    position : Vector3;
+    normal   : Vector3;
+    tangent  : Vector4;
+    uv0      : Vector2;
+}
+
+Options :: struct (VERTEX_TYPE : $Type){
     loader : Loader;
     save_per_primitive := false;
     save_blob          := true;
     
     // Vertices
     vertices_add_missing    := false; //@Incomplete
-    vertices_attributes_order : [] Attribute = .[.Position, .Normal, .UV0];  
+    vertices_attributes_order : [] Attribute = .[.Position, .Normal, .Tangent, .UV0]; // generate by notes
+    vertices_generate_tangents_if_needed := true; // xyz tangent, w flip for binormal
     
     // Indices
     indices_element_size_in_bytes := 2; // -> u16
@@ -18,6 +26,8 @@ Loader :: enum {
 File_Content :: struct {
     filename : string;
     meshes   : [..] Mesh;
+    
+    tangents_found := false;
 }
 
 Mesh :: struct {
@@ -32,10 +42,9 @@ Primitive :: struct {
     indices  : [..] u8;
     
 #place vertices; vertices_f32 : [] float32;
-#place indices; indices_u16   : [] u16;
 }
 
-//TODO(nyv): colors, joints, weights, bitangent?
+//TODO(nyv): colors, joints, weights
 Attribute :: enum {
     Position;
     Normal;
@@ -44,11 +53,19 @@ Attribute :: enum {
     UV1;
 }
 
-convert :: (filepath : string, opts := Options.{}) {
+convert :: (filepath : string, opts := Options(Default_Vertex).{}) {
     content : File_Content = ---;
     success : bool;
     if opts.loader == {
         case .GLTF;    content, success = load_from_gltf(filepath, opts);
+    }
+    
+    if opts.vertices_generate_tangents_if_needed && !content.tangents_found {
+        for *m, m_idx : content.meshes {
+            for *p, p_idx : m.primitives {
+                generate_tangents(opts, *p.vertices, *p.indices);
+            }
+        }
     }
     
     left  : string;
@@ -102,11 +119,85 @@ convert :: (filepath : string, opts := Options.{}) {
             }
         }
         
-        write_entire_file(tprint("%/%_info.csv", dir, dir), info_builder);
+        write_entire_file(tprint("%/info.csv", dir), info_builder);
     }
 }
 
 #scope_file
+
+generate_tangents :: (opts : Options, vertices : *[]u8, indices : *[]u8) {
+    vertices_view : []opts.VERTEX_TYPE;
+    vertices_view.data  = cast(*opts.VERTEX_TYPE)vertices.data;
+    vertices_view.count = vertices.count / size_of(opts.VERTEX_TYPE);
+    indices_view : []u16;
+    indices_view.data  = cast(*u16)indices.data;
+    indices_view.count = indices.count / 2; 
+    assert(indices_view.count % 3 == 0);
+    
+    User_Ctx :: struct {
+        view_v : []opts.VERTEX_TYPE;
+        view_i : []u16;
+    };
+    
+    user_ctx : User_Ctx;
+    user_ctx.view_v = vertices_view;
+    user_ctx.view_i = indices_view;
+    
+    inter : SMikkTSpace.SMikkTSpaceInterface;
+    inter.m_getNumFaces = (ctx: *SMikkTSpace.SMikkTSpaceContext) -> s32 #c_call {
+        user_ctx := cast(*User_Ctx)ctx.m_pUserData;
+        return cast(s32)user_ctx.view_v.count / 3;
+    };
+    inter.m_getNumVerticesOfFace = (ctx: *SMikkTSpace.SMikkTSpaceContext, iFace: s32) -> s32 #c_call {
+        // Only triangles supported;
+        return 3;
+    };
+    inter.m_getPosition = (ctx: *SMikkTSpace.SMikkTSpaceContext, out: *float, iFace: s32, iVert: s32) -> void #c_call {
+        user_ctx := cast(*User_Ctx)ctx.m_pUserData;
+        ii := user_ctx.view_i[3 * iFace + iVert];
+        out[0] = user_ctx.view_v[ii].position.x;
+        out[1] = user_ctx.view_v[ii].position.y;
+        out[2] = user_ctx.view_v[ii].position.z;
+    };
+    inter.m_getNormal = (ctx: *SMikkTSpace.SMikkTSpaceContext, out: *float, iFace: s32, iVert: s32) -> void #c_call {
+        user_ctx := cast(*User_Ctx)ctx.m_pUserData;
+        ii := user_ctx.view_i[3 * iFace + iVert];
+        out[0] = user_ctx.view_v[ii].normal.x;
+        out[1] = user_ctx.view_v[ii].normal.y;
+        out[2] = user_ctx.view_v[ii].normal.z;
+    };
+    inter.m_getTexCoord = (ctx: *SMikkTSpace.SMikkTSpaceContext, out: *float, iFace: s32, iVert: s32) -> void #c_call {
+        user_ctx := cast(*User_Ctx)ctx.m_pUserData;
+        ii := user_ctx.view_i[3 * iFace + iVert];
+        out[0] = user_ctx.view_v[ii].uv0.x;
+        out[1] = user_ctx.view_v[ii].uv0.y;
+    };
+    inter.m_setTSpaceBasic = (ctx: *SMikkTSpace.SMikkTSpaceContext, inTangent: *float, fSign : float, iFace : s32, iVert: s32) -> void #c_call {
+        user_ctx := cast(*User_Ctx)ctx.m_pUserData;
+        ii := user_ctx.view_i[3 * iFace + iVert];
+        user_ctx.view_v[ii].tangent.x = inTangent[0];
+        user_ctx.view_v[ii].tangent.y = inTangent[1];
+        user_ctx.view_v[ii].tangent.z = inTangent[2];
+        user_ctx.view_v[ii].tangent.w = fSign;
+    };
+    
+    ctx   : SMikkTSpace.SMikkTSpaceContext;
+    ctx.m_pUserData  = xx *user_ctx;
+    ctx.m_pInterface = xx *inter;
+    
+    result := SMikkTSpace.genTangSpaceDefault(*ctx);
+    assert(result == 1);
+}
+
+
+
+
+
+
+
+
 #import "Basic";
 #import "File";
+#import "Math";
+SMikkTSpace :: #import "MikkTSpace";
 #load "loader_gltf.jai";
