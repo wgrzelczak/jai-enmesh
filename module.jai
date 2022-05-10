@@ -146,7 +146,7 @@ generate_tangents :: (opts : Options, vertices : *[]u8, indices : *[]u8) {
     inter : SMikkTSpace.SMikkTSpaceInterface;
     inter.m_getNumFaces = (ctx: *SMikkTSpace.SMikkTSpaceContext) -> s32 #c_call {
         user_ctx := cast(*User_Ctx)ctx.m_pUserData;
-        return cast(s32)user_ctx.view_v.count / 3;
+        return cast(s32)user_ctx.view_i.count / 3;
     };
     inter.m_getNumVerticesOfFace = (ctx: *SMikkTSpace.SMikkTSpaceContext, iFace: s32) -> s32 #c_call {
         // Only triangles supported;
